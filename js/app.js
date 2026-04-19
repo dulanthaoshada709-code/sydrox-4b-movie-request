@@ -1,22 +1,31 @@
-// Common app functions
+// ==================== Common Helper Functions ====================
 
-// Helper: Get current user
+// Get current logged-in user
 function getCurrentUser() {
   const userJson = localStorage.getItem('currentUser');
   return userJson ? JSON.parse(userJson) : null;
 }
 
-// Helper: Get all requests
+// Get all movie requests from localStorage
 function getAllRequests() {
   return JSON.parse(localStorage.getItem('movieRequests') || '[]');
 }
 
-// Helper: Save requests
+// Save requests array to localStorage
 function saveRequests(requests) {
   localStorage.setItem('movieRequests', JSON.stringify(requests));
 }
 
-// Initialize Dashboard
+// Simple escape to prevent XSS
+function escapeHtml(text) {
+  if (!text) return '';
+  const div = document.createElement('div');
+  div.textContent = text;
+  return div.innerHTML;
+}
+
+// ==================== Dashboard Initialization ====================
+
 function initDashboard() {
   const user = getCurrentUser();
   if (!user) {
@@ -24,13 +33,13 @@ function initDashboard() {
     return;
   }
   
-  // Display user name
+  // Display user name in navbar
   const userNameDisplay = document.getElementById('userNameDisplay');
   if (userNameDisplay) {
     userNameDisplay.textContent = user.name;
   }
   
-  // Setup logout
+  // Setup logout button
   const logoutBtn = document.getElementById('logoutBtn');
   if (logoutBtn) {
     logoutBtn.addEventListener('click', function(e) {
@@ -40,7 +49,7 @@ function initDashboard() {
     });
   }
   
-  // User menu dropdown
+  // User menu dropdown toggle
   const userMenuBtn = document.getElementById('userMenuBtn');
   const userDropdown = document.getElementById('userDropdown');
   if (userMenuBtn && userDropdown) {
@@ -48,7 +57,7 @@ function initDashboard() {
       userDropdown.classList.toggle('hidden');
     });
     
-    // Close when clicking outside
+    // Close dropdown when clicking outside
     document.addEventListener('click', function(e) {
       if (!userMenuBtn.contains(e.target) && !userDropdown.contains(e.target)) {
         userDropdown.classList.add('hidden');
@@ -56,10 +65,10 @@ function initDashboard() {
     });
   }
   
-  // Load user requests
+  // Load user's requests into the grid
   loadUserRequests(user.id);
   
-  // New request modal
+  // Setup modal for new movie request
   const modal = document.getElementById('requestModal');
   const newRequestBtn = document.getElementById('newRequestBtn');
   const closeModalBtn = document.querySelector('.close-modal');
@@ -80,12 +89,12 @@ function initDashboard() {
   if (closeModalBtn) closeModalBtn.addEventListener('click', closeModal);
   if (cancelBtn) cancelBtn.addEventListener('click', closeModal);
   
-  // Close modal when clicking outside
+  // Close modal when clicking outside content
   modal.addEventListener('click', function(e) {
     if (e.target === modal) closeModal();
   });
   
-  // Submit new request
+  // Handle form submission for new movie request
   if (requestForm) {
     requestForm.addEventListener('submit', function(e) {
       e.preventDefault();
@@ -95,7 +104,7 @@ function initDashboard() {
       const quality = document.getElementById('quality').value;
       
       if (!movieName || !quality) {
-        alert('චිත්‍රපට නම සහ ගුණාත්මකභාවය අනිවාර්ය වේ.');
+        alert('film name and quality ඕනේ.');
         return;
       }
       
@@ -121,7 +130,8 @@ function initDashboard() {
   }
 }
 
-// Load user requests into dashboard
+// ==================== Load User Requests into Dashboard ====================
+
 function loadUserRequests(userId) {
   const container = document.getElementById('requestsContainer');
   if (!container) return;
@@ -132,23 +142,37 @@ function loadUserRequests(userId) {
     container.innerHTML = `
       <div class="empty-state">
         <i class="fas fa-inbox"></i>
-        <p>තවමත් චිත්‍රපට ඉල්ලීම් නොමැත.</p>
+        <p>no films.</p>
       </div>
     `;
     return;
   }
   
-  // Sort by date descending
+  // Sort by date descending (newest first)
   requests.sort((a, b) => new Date(b.requestedAt) - new Date(a.requestedAt));
+  
+  // ========== IMPORTANT: Replace with your actual WhatsApp group invite link ==========
+  const groupLink = 'YOUR_GROUP_INVITE_LINK'; // e.g., https://chat.whatsapp.com/xyz
+  // ===================================================================================
   
   let html = '';
   requests.forEach(req => {
     const date = new Date(req.requestedAt).toLocaleDateString('si-LK');
     const statusClass = req.status === 'pending' ? 'status-pending' : 'status-completed';
-    const statusText = req.status === 'pending' ? 'බලාපොරොත්තුවෙන්' : 'සම්පූර්ණයි';
+    const statusText = req.status === 'pending' ? 'wait' : 'complete';
+    
+    // Show WhatsApp button only if request is completed
+    let completedBadge = '';
+    if (req.status === 'completed') {
+      completedBadge = `
+        <a href="${groupLink}" target="_blank" class="whatsapp-group-link" title="WhatsApp group">
+          <i class="fab fa-whatsapp"></i> go to group
+        </a>
+      `;
+    }
     
     html += `
-      <div class="request-card">
+      <div class="request-card ${req.status === 'completed' ? 'completed-request' : ''}">
         <h4><i class="fas fa-film"></i> ${escapeHtml(req.movieName)}</h4>
         <div class="request-detail">
           <i class="fas fa-globe"></i>
@@ -162,7 +186,10 @@ function loadUserRequests(userId) {
           <i class="far fa-calendar-alt"></i>
           <span>${date}</span>
         </div>
-        <span class="request-status ${statusClass}">${statusText}</span>
+        <div class="request-footer">
+          <span class="request-status ${statusClass}">${statusText}</span>
+          ${completedBadge}
+        </div>
       </div>
     `;
   });
@@ -170,7 +197,8 @@ function loadUserRequests(userId) {
   container.innerHTML = html;
 }
 
-// Admin panel: Load all requests
+// ==================== Admin Panel Functions ====================
+
 function loadAdminRequests() {
   const tbody = document.getElementById('tableBody');
   const noDataMsg = document.getElementById('noDataMessage');
@@ -189,13 +217,13 @@ function loadAdminRequests() {
   table.classList.remove('hidden');
   noDataMsg.classList.add('hidden');
   
-  // Sort by date descending
+  // Sort by date descending (newest first)
   requests.sort((a, b) => new Date(b.requestedAt) - new Date(a.requestedAt));
   
   let html = '';
   requests.forEach(req => {
     const date = new Date(req.requestedAt).toLocaleDateString('si-LK');
-    const statusText = req.status === 'pending' ? 'බලාපොරොත්තුවෙන්' : 'සම්පූර්ණයි';
+    const statusText = req.status === 'pending' ? 'wait' : 'complete';
     
     html += `
       <tr>
@@ -208,7 +236,7 @@ function loadAdminRequests() {
         <td>${date}</td>
         <td>
           <button class="action-btn complete" onclick="updateRequestStatus('${req.id}', 'completed')" ${req.status === 'completed' ? 'disabled' : ''}>
-            <i class="fas fa-check"></i> සම්පූර්ණ කළා
+            <i class="fas fa-check"></i>completed
           </button>
         </td>
       </tr>
@@ -218,25 +246,21 @@ function loadAdminRequests() {
   tbody.innerHTML = html;
 }
 
-// Update request status (admin action)
+// Update request status (called from admin panel)
 function updateRequestStatus(requestId, newStatus) {
-  const requests = getAllRequests();
-  const requestIndex = requests.findIndex(r => r.id === requestId);
-  
-  if (requestIndex !== -1) {
-    requests[requestIndex].status = newStatus;
-    saveRequests(requests);
-    loadAdminRequests(); // Refresh table
+  if (confirm('මෙම ඉල්ලීම සම්පූර්ණ කළ බවට සලකුණු කරන්නද?')) {
+    const requests = getAllRequests();
+    const requestIndex = requests.findIndex(r => r.id === requestId);
+    
+    if (requestIndex !== -1) {
+      requests[requestIndex].status = newStatus;
+      saveRequests(requests);
+      loadAdminRequests(); // Refresh admin table
+      
+      alert('තත්වය යාවත්කාලීන කරන ලදී. පරිශීලකයාට දැන් WhatsApp සබැඳිය පෙනෙනු ඇත.');
+    }
   }
 }
 
-// Simple escape to prevent XSS
-function escapeHtml(text) {
-  if (!text) return '';
-  const div = document.createElement('div');
-  div.textContent = text;
-  return div.innerHTML;
-}
-
-// Expose function for onclick in admin table
+// Expose updateRequestStatus globally for onclick handler in admin table
 window.updateRequestStatus = updateRequestStatus;
