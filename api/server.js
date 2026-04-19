@@ -14,25 +14,24 @@ async function connectDB() {
     return client.db('movieDB').collection('requests');
 }
 
-// දත්ත ලබාගැනීම
 app.get('/api/requests', async (req, res) => {
     const col = await connectDB();
     const data = await col.find({}).sort({ requestedAt: -1 }).toArray();
     res.json(data);
 });
 
-// දත්ත ඇතුළත් කිරීම
 app.post('/api/requests', async (req, res) => {
     const col = await connectDB();
     const result = await col.insertOne(req.body);
     res.status(201).json(result);
 });
 
-// තත්වය වෙනස් කිරීම (Admin සඳහා)
+// Status එක වෙනස් කිරීම (completed හෝ unfound ලෙස)
 app.patch('/api/requests', async (req, res) => {
     const col = await connectDB();
     const { id } = req.query;
-    await col.updateOne({ id: id }, { $set: { status: req.body.status } });
+    const { status } = req.body;
+    await col.updateOne({ id: id }, { $set: { status: status } });
     res.json({ success: true });
 });
 
