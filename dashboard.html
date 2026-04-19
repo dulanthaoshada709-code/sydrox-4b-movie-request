@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>ඩෑෂ්බෝඩ් | චිත්‍රපට ඉල්ලීම්</title>
+  <title>DASHBOARD | request movie</title>
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
   <link rel="stylesheet" href="css/style.css">
 </head>
@@ -35,21 +35,21 @@
     <aside class="sidebar">
       <button id="newRequestBtn" class="new-request-btn">
         <i class="fas fa-plus-circle"></i>
-        <span>නව චිත්‍රපටයක් ඉල්ලන්න</span>
+        <span>request film</span>
       </button>
     </aside>
 
     <!-- Main Content Area -->
     <main class="main-content">
       <div class="content-header">
-        <h3>ඔබගේ ඉල්ලීම්</h3>
+        <h3>your reuest</h3>
       </div>
       
       <div id="requestsContainer" class="requests-grid">
         <!-- Requests will be loaded here dynamically -->
         <div class="empty-state">
           <i class="fas fa-inbox"></i>
-          <p>තවමත් චිත්‍රපට ඉල්ලීම් නොමැත.</p>
+          <p>no result..!</p>
         </div>
       </div>
     </main>
@@ -59,24 +59,24 @@
   <div id="requestModal" class="modal hidden">
     <div class="modal-content">
       <div class="modal-header">
-        <h3><i class="fas fa-film"></i> නව චිත්‍රපට ඉල්ලීම</h3>
+        <h3><i class="fas fa-film"></i> request a new film </h3>
         <button class="close-modal">&times;</button>
       </div>
       <form id="movieRequestForm">
         <div class="form-group">
-          <label for="movieName">චිත්‍රපටයේ නම *</label>
-          <input type="text" id="movieName" placeholder="උදා: Inception" required>
+          <label for="movieName">film name*</label>
+          <input type="text" id="movieName" placeholder="eg: Inception" required>
         </div>
         
         <div class="form-group">
           <label for="movieSite">වෙබ් අඩවිය (විකල්ප)</label>
-          <input type="text" id="movieSite" placeholder="උදා: IMDb, YouTube">
+          <input type="text" id="movieSite" placeholder="උදා: sinhalasub/cinesubz">
         </div>
         
         <div class="form-group">
-          <label for="quality">ගුණාත්මකභාවය *</label>
+          <label for="quality"> quality *</label>
           <select id="quality" required>
-            <option value="">තෝරන්න</option>
+            <option value="">slect </option>
             <option value="480p">480p</option>
             <option value="720p">720p</option>
             <option value="1080p">1080p</option>
@@ -84,9 +84,9 @@
         </div>
         
         <div class="modal-actions">
-          <button type="button" class="cancel-btn">අවලංගු කරන්න</button>
+          <button type="button" class="cancel-btn">cancel</button>
           <button type="submit" class="submit-btn">
-            <i class="fas fa-paper-plane"></i> ඉල්ලීම යවන්න
+            <i class="fas fa-paper-plane"></i> submit request
           </button>
         </div>
       </form>
