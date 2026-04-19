@@ -6,44 +6,34 @@ const app = express();
 app.use(cors());
 app.use(express.json());
 
-// Vercel Settings වල MONGODB_URI ඇතුළත් කිරීමට අමතක කරන්න එපා
 const uri = process.env.MONGODB_URI;
 const client = new MongoClient(uri);
 
 async function connectDB() {
-    try {
-        await client.connect();
-        return client.db('movieDB').collection('requests');
-    } catch (e) {
-        console.error("Connection error", e);
-        return null;
-    }
+    await client.connect();
+    return client.db('movieDB').collection('requests');
 }
 
-// 1. සියලුම Requests ලබා ගැනීම
+// දත්ත ලබාගැනීම
 app.get('/api/requests', async (req, res) => {
-    const collection = await connectDB();
-    if (!collection) return res.status(500).send("DB Connection Error");
-    const requests = await collection.find({}).toArray();
-    res.json(requests);
+    const col = await connectDB();
+    const data = await col.find({}).sort({ requestedAt: -1 }).toArray();
+    res.json(data);
 });
 
-// 2. අලුත් Request එකක් ඇතුළත් කිරීම
+// දත්ත ඇතුළත් කිරීම
 app.post('/api/requests', async (req, res) => {
-    const collection = await connectDB();
-    if (!collection) return res.status(500).send("DB Connection Error");
-    const result = await collection.insertOne(req.body);
+    const col = await connectDB();
+    const result = await col.insertOne(req.body);
     res.status(201).json(result);
 });
 
-// 3. Status එක වෙනස් කිරීම
+// තත්වය වෙනස් කිරීම (Admin සඳහා)
 app.patch('/api/requests', async (req, res) => {
-    const collection = await connectDB();
-    if (!collection) return res.status(500).send("DB Connection Error");
+    const col = await connectDB();
     const { id } = req.query;
-    const { status } = req.body;
-    const result = await collection.updateOne({ id: id }, { $set: { status: status } });
-    res.json(result);
+    await col.updateOne({ id: id }, { $set: { status: req.body.status } });
+    res.json({ success: true });
 });
 
 module.exports = app;
