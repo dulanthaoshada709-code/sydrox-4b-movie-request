@@ -1,25 +1,49 @@
-const API_BASE_URL = ''; // Vercel වලදී මෙය හිස්ව තැබිය හැක
+const express = require('express');
+const { MongoClient } = require('mongodb');
+const cors = require('cors');
 
-async function apiFetch(endpoint, method = 'GET', body = null) {
-  const options = { 
-    method, 
-    headers: { 'Content-Type': 'application/json' } 
-  };
-  if (body) options.body = JSON.stringify(body);
-  
-  try {
-    const response = await fetch(`/api${endpoint}`, options);
-    if (!response.ok) throw new Error(`API Error: ${response.status}`);
-    return await response.json();
-  } catch (error) {
-    console.error('API Error:', error);
-    return null;
-  }
+const app = express();
+app.use(cors());
+app.use(express.json());
+
+// Vercel Settings වල MONGODB_URI ඇතුළත් කිරීමට අමතක කරන්න එපා
+const uri = process.env.MONGODB_URI;
+const client = new MongoClient(uri);
+
+async function connectDB() {
+    try {
+        await client.connect();
+        return client.db('movieDB').collection('requests');
+    } catch (e) {
+        console.error("Connection error", e);
+        return null;
+    }
 }
 
-// Functions
-const getAllRequests = () => apiFetch('/requests');
-const saveRequest = (data) => apiFetch('/requests', 'POST', data);
-const updateRequestStatusMongo = (id, status) => apiFetch(`/requests/${id}`, 'PATCH', { status });
+// 1. සියලුම Requests ලබා ගැනීම
+app.get('/api/requests', async (req, res) => {
+    const collection = await connectDB();
+    if (!collection) return res.status(500).send("DB Connection Error");
+    const requests = await collection.find({}).toArray();
+    res.json(requests);
+});
 
-// ... (මෙහි සිට පහළට ඔබ කලින් එවා තිබූ initDashboard වැනි ශ්‍රිත එලෙසම තබන්න)
+// 2. අලුත් Request එකක් ඇතුළත් කිරීම
+app.post('/api/requests', async (req, res) => {
+    const collection = await connectDB();
+    if (!collection) return res.status(500).send("DB Connection Error");
+    const result = await collection.insertOne(req.body);
+    res.status(201).json(result);
+});
+
+// 3. Status එක වෙනස් කිරීම
+app.patch('/api/requests', async (req, res) => {
+    const collection = await connectDB();
+    if (!collection) return res.status(500).send("DB Connection Error");
+    const { id } = req.query;
+    const { status } = req.body;
+    const result = await collection.updateOne({ id: id }, { $set: { status: status } });
+    res.json(result);
+});
+
+module.exports = app;
