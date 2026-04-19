@@ -2,7 +2,7 @@
 const MONGO_API_KEY = 'YOUR_API_KEY'; // Data API Key එක
 const MONGO_APP_ID = 'YOUR_APP_ID';   // App ID එක (URL එකේ තියෙන data-abcde කොටස)
 const MONGO_BASE_URL = `https://data.mongodb-api.com/app/${MONGO_APP_ID}/endpoint/data/v1`;
-const MONGO_DATA_SOURCE = 'Cluster0';  // ඔබගේ Cluster නම (සාමාන්‍යයෙන් Cluster0)
+const MONGO_DATA_SOURCE = 'Cluster0';
 const MONGO_DATABASE = 'movieRequestDB';
 const MONGO_COLLECTION = 'requests';
 
@@ -39,18 +39,15 @@ async function mongoFetch(action, filter = {}, document = null, update = null) {
   }
 }
 
-// Get all requests from MongoDB
 async function getAllRequests() {
   const result = await mongoFetch('find', {});
   return result ? result.documents : [];
 }
 
-// Save a new request to MongoDB
 async function saveRequest(newRequest) {
   return await mongoFetch('insertOne', {}, newRequest);
 }
 
-// Update request status in MongoDB
 async function updateRequestStatusMongo(requestId, newStatus) {
   const filter = { id: requestId };
   const update = { $set: { status: newStatus } };
@@ -103,7 +100,6 @@ async function initDashboard() {
   
   await loadUserRequests(user.id);
   
-  // Modal setup
   const modal = document.getElementById('requestModal');
   const newRequestBtn = document.getElementById('newRequestBtn');
   const closeModalBtn = document.querySelector('.close-modal');
@@ -155,7 +151,7 @@ async function initDashboard() {
   }
 }
 
-// ==================== Load User Requests into Dashboard ====================
+// ==================== Load User Requests ====================
 async function loadUserRequests(userId) {
   const container = document.getElementById('requestsContainer');
   if (!container) return;
@@ -170,32 +166,44 @@ async function loadUserRequests(userId) {
   
   requests.sort((a, b) => new Date(b.requestedAt) - new Date(a.requestedAt));
   
-  const groupLink = 'YOUR_GROUP_INVITE_LINK'; // ⚠️ මෙය ඔබගේ WhatsApp සමූහයේ ආරාධනා සබැඳියට වෙනස් කරන්න
+  const groupLink = 'YOUR_GROUP_INVITE_LINK'; // ⚠️ ඔබගේ WhatsApp සමූහයේ ආරාධනා සබැඳිය
   
   let html = '';
   requests.forEach(req => {
     const date = new Date(req.requestedAt).toLocaleDateString('si-LK');
-    const statusClass = req.status === 'pending' ? 'status-pending' : 'status-completed';
-    const statusText = req.status === 'pending' ? 'බලාපොරොත්තුවෙන්' : 'සම්පූර්ණයි';
     
-    let completedBadge = '';
+    let statusClass, statusText;
+    if (req.status === 'pending') {
+      statusClass = 'status-pending';
+      statusText = 'බලාපොරොත්තුවෙන්';
+    } else if (req.status === 'completed') {
+      statusClass = 'status-completed';
+      statusText = 'සම්පූර්ණයි';
+    } else { // unfound
+      statusClass = 'status-unfound';
+      statusText = 'සොයාගත නොහැක';
+    }
+    
+    let actionBadge = '';
     if (req.status === 'completed') {
-      completedBadge = `
+      actionBadge = `
         <a href="${groupLink}" target="_blank" class="whatsapp-group-link">
           <i class="fab fa-whatsapp"></i> සමූහයට යන්න
         </a>
       `;
+    } else if (req.status === 'unfound') {
+      actionBadge = `<span class="unfound-message"><i class="fas fa-exclamation-circle"></i> චිත්‍රපටය හමු නොවීය</span>`;
     }
     
     html += `
-      <div class="request-card ${req.status === 'completed' ? 'completed-request' : ''}">
+      <div class="request-card ${req.status === 'completed' ? 'completed-request' : (req.status === 'unfound' ? 'unfound-request' : '')}">
         <h4><i class="fas fa-film"></i> ${escapeHtml(req.movieName)}</h4>
         <div class="request-detail"><i class="fas fa-globe"></i><span>${escapeHtml(req.site)}</span></div>
         <div class="request-detail"><i class="fas fa-video"></i><span>${escapeHtml(req.quality)}</span></div>
         <div class="request-detail"><i class="far fa-calendar-alt"></i><span>${date}</span></div>
         <div class="request-footer">
           <span class="request-status ${statusClass}">${statusText}</span>
-          ${completedBadge}
+          ${actionBadge}
         </div>
       </div>
     `;
@@ -227,7 +235,17 @@ async function loadAdminRequests() {
   let html = '';
   requests.forEach(req => {
     const date = new Date(req.requestedAt).toLocaleDateString('si-LK');
-    const statusText = req.status === 'pending' ? 'බලාපොරොත්තුවෙන්' : 'සම්පූර්ණයි';
+    let statusText, statusClass;
+    if (req.status === 'pending') {
+      statusText = 'බලාපොරොත්තුවෙන්';
+      statusClass = 'status-pending';
+    } else if (req.status === 'completed') {
+      statusText = 'සම්පූර්ණයි';
+      statusClass = 'status-completed';
+    } else {
+      statusText = 'සොයාගත නොහැක';
+      statusClass = 'status-unfound';
+    }
     
     html += `
       <tr>
@@ -236,11 +254,14 @@ async function loadAdminRequests() {
         <td>${escapeHtml(req.movieName)}</td>
         <td>${escapeHtml(req.site)}</td>
         <td>${escapeHtml(req.quality)}</td>
-        <td><span class="status-badge ${req.status === 'pending' ? 'status-pending' : 'status-completed'}">${statusText}</span></td>
+        <td><span class="status-badge ${statusClass}">${statusText}</span></td>
         <td>${date}</td>
         <td>
           <button class="action-btn complete" onclick="updateRequestStatus('${req.id}', 'completed')" ${req.status === 'completed' ? 'disabled' : ''}>
-            <i class="fas fa-check"></i> සම්පූර්ණ කළා
+            <i class="fas fa-check"></i> සම්පූර්ණ
+          </button>
+          <button class="action-btn unfound" onclick="updateRequestStatus('${req.id}', 'unfound')" ${req.status === 'unfound' ? 'disabled' : ''}>
+            <i class="fas fa-search"></i> හමු නොවීය
           </button>
         </td>
       </tr>
@@ -251,41 +272,23 @@ async function loadAdminRequests() {
 }
 
 async function updateRequestStatus(requestId, newStatus) {
-  if (!confirm('මෙම ඉල්ලීම සම්පූර්ණ කළ බවට සලකුණු කරන්නද?')) return;
+  let confirmMsg = '';
+  if (newStatus === 'completed') {
+    confirmMsg = 'ඉල්ලීම සම්පූර්ණ කළ බවට සලකුණු කරන්නද?';
+  } else {
+    confirmMsg = 'චිත්‍රපටය සොයාගත නොහැකි බවට සලකුණු කරන්නද?';
+  }
+  
+  if (!confirm(confirmMsg)) return;
   
   const result = await updateRequestStatusMongo(requestId, newStatus);
   if (result) {
     await loadAdminRequests();
-    alert('තත්වය යාවත්කාලීන කරන ලදී. පරිශීලකයාට දැන් WhatsApp සබැඳිය පෙනෙනු ඇත.');
+    alert('තත්වය යාවත්කාලීන කරන ලදී.');
   }
 }
 
-// Expose globally
-window.updateRequestStatus = updateRequestStatus;  const userNameDisplay = document.getElementById('userNameDisplay');
-  if (userNameDisplay) {
-    userNameDisplay.textContent = user.name;
-  }
-  
-  // Setup logout button
-  const logoutBtn = document.getElementById('logoutBtn');
-  if (logoutBtn) {
-    logoutBtn.addEventListener('click', function(e) {
-      e.preventDefault();
-      localStorage.removeItem('currentUser');
-      window.location.href = 'index.html';
-    });
-  }
-  
-  // User menu dropdown toggle
-  const userMenuBtn = document.getElementById('userMenuBtn');
-  const userDropdown = document.getElementById('userDropdown');
-  if (userMenuBtn && userDropdown) {
-    userMenuBtn.addEventListener('click', function() {
-      userDropdown.classList.toggle('hidden');
-    });
-    
-    // Close dropdown when clicking outside
-    document.addEventListener('click', function(e) {
+window.updateRequestStatus = updateRequestStatus;', function(e) {
       if (!userMenuBtn.contains(e.target) && !userDropdown.contains(e.target)) {
         userDropdown.classList.add('hidden');
       }
