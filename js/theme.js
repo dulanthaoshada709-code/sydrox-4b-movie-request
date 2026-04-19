@@ -27,10 +27,10 @@
     
     if (theme === 'dark') {
       icon.className = 'fas fa-sun';
-      if (span) span.textContent = 'ආලෝක ප්‍රකාරය';
+      if (span) span.textContent = 'light';
     } else {
       icon.className = 'fas fa-moon';
-      if (span) span.textContent = 'අඳුරු ප්‍රකාරය';
+      if (span) span.textContent = 'dark';
     }
   }
 })();
