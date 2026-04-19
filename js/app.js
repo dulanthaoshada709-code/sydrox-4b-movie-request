@@ -1,119 +1,85 @@
-const API_BASE_URL = '/api';
+const API = '/api/requests';
 
-async function apiFetch(endpoint, method = 'GET', body = null) {
-  const options = { 
-    method, 
-    headers: { 'Content-Type': 'application/json' } 
-  };
-  if (body) options.body = JSON.stringify(body);
-  
-  try {
-    const response = await fetch(`${API_BASE_URL}${endpoint}`, options);
-    if (!response.ok) throw new Error(`API Error: ${response.status}`);
-    return await response.json();
-  } catch (error) {
-    console.error('API Error:', error);
-    return null;
-  }
+// පොදු Function එකක් API Call කිරීමට
+async function fetchAPI(url, method = 'GET', body = null) {
+    const options = { method, headers: { 'Content-Type': 'application/json' } };
+    if (body) options.body = JSON.stringify(body);
+    const res = await fetch(url, options);
+    return res.json();
 }
 
-const getAllRequests = () => apiFetch('/requests');
-const saveRequest = (data) => apiFetch('/requests', 'POST', data);
-const updateRequestStatusMongo = (id, status) => apiFetch(`/requests?id=${id}`, 'PATCH', { status });
-
-function getCurrentUser() {
-  const userJson = localStorage.getItem('currentUser');
-  return userJson ? JSON.parse(userJson) : null;
-}
-
-function escapeHtml(text) {
-  if (!text) return '';
-  const div = document.createElement('div');
-  div.textContent = text;
-  return div.innerHTML;
-}
-
-// Dashboard එකේ Buttons වැඩ කරන්නේ මෙතැනින්
+// --- Dashboard ආරම්භය ---
 async function initDashboard() {
-  const user = getCurrentUser();
-  if (!user) { window.location.href = 'index.html'; return; }
-  
-  const userNameDisplay = document.getElementById('userNameDisplay');
-  if (userNameDisplay) userNameDisplay.textContent = user.name;
-  
-  // Logout Button
-  document.getElementById('logoutBtn')?.addEventListener('click', (e) => {
-    e.preventDefault();
-    localStorage.removeItem('currentUser');
-    window.location.href = 'index.html';
-  });
-  
-  // පවතින ඉල්ලීම් පෙන්වීම
-  await loadUserRequests(user.id);
-  
-  // Modal පාලනය කරන Buttons (මෙහි ids නිවැරදි කර ඇත)
-  const modal = document.getElementById('requestModal');
-  const newRequestBtn = document.getElementById('newRequestBtn');
-  const closeModalBtn = document.querySelector('.close-modal');
-  const cancelBtn = document.querySelector('.cancel-btn');
-  const requestForm = document.getElementById('movieRequestForm');
-  
-  // Button එක එබූ විට Modal එක පෙන්වීම
-  newRequestBtn?.addEventListener('click', () => {
-    modal.classList.remove('hidden');
-  });
-  
-  const closeModal = () => { 
-    modal.classList.add('hidden'); 
-    requestForm?.reset(); 
-  };
-  
-  closeModalBtn?.addEventListener('click', closeModal);
-  cancelBtn?.addEventListener('click', closeModal);
+    const user = JSON.parse(localStorage.getItem('currentUser'));
+    if (!user) { window.location.href = 'index.html'; return; }
 
-  // Form එක Submit කිරීම
-  requestForm?.addEventListener('submit', async (e) => {
-    e.preventDefault();
-    const movieName = document.getElementById('movieName').value.trim();
-    const movieSite = document.getElementById('movieSite').value.trim() || '-';
-    const quality = document.getElementById('quality').value;
+    document.getElementById('userNameDisplay').textContent = user.name;
+
+    const modal = document.getElementById('requestModal');
+    const newRequestBtn = document.getElementById('newRequestBtn');
     
-    const newRequest = {
-      id: 'req_' + Date.now() + Math.random().toString(36).substr(2, 5),
-      userId: user.id,
-      userName: user.name,
-      userWhatsapp: user.whatsapp,
-      movieName, site: movieSite, quality,
-      status: 'pending',
-      requestedAt: new Date().toISOString()
-    };
-    
-    const result = await saveRequest(newRequest);
-    if (result) { 
-      closeModal(); 
-      await loadUserRequests(user.id); 
-    }
-  });
+    // Plus Button එක එබූ විට Modal එක පෙන්වීම
+    newRequestBtn?.addEventListener('click', () => modal.classList.remove('hidden'));
+
+    // Form එක Submit කිරීම
+    document.getElementById('movieRequestForm')?.addEventListener('submit', async (e) => {
+        e.preventDefault();
+        const data = {
+            id: 'req_' + Date.now(),
+            userId: user.id,
+            userName: user.name,
+            userWhatsapp: user.whatsapp,
+            movieName: document.getElementById('movieName').value,
+            site: document.getElementById('movieSite').value || '-',
+            quality: document.getElementById('quality').value,
+            status: 'pending',
+            requestedAt: new Date().toISOString()
+        };
+
+        await fetchAPI(API, 'POST', data);
+        alert('ඉල්ලීම යොමු කළා!');
+        modal.classList.add('hidden');
+        location.reload(); // දත්ත අලුත් කිරීමට
+    });
+
+    loadUserRequests(user.id);
 }
 
+// User ගේ දත්ත පෙන්වීම
 async function loadUserRequests(userId) {
-  const container = document.getElementById('requestsContainer');
-  const allRequests = await getAllRequests() || [];
-  const requests = allRequests.filter(req => req.userId === userId);
-  
-  if (requests.length === 0) {
-    container.innerHTML = `<div class="empty-state"><i class="fas fa-inbox"></i><p>තවමත් ඉල්ලීම් නොමැත.</p></div>`;
-    return;
-  }
-  
-  let html = '';
-  requests.sort((a, b) => new Date(b.requestedAt) - new Date(a.requestedAt)).forEach(req => {
-    html += `
-      <div class="request-card">
-        <h4><i class="fas fa-film"></i> ${escapeHtml(req.movieName)}</h4>
-        <div class="request-detail"><span>${req.quality}</span></div>
-        <div class="request-footer"><span>${req.status}</span></div>
-      </div>`;
-  });
-  container.innerHTML = html;
-    }
+    const all = await fetchAPI(API);
+    const mine = all.filter(r => r.userId === userId);
+    const container = document.getElementById('requestsContainer');
+    
+    container.innerHTML = mine.map(req => `
+        <div class="request-card" style="background:rgba(255,255,255,0.1); padding:15px; border-radius:10px; margin-bottom:10px;">
+            <h4 style="color:#fff;">${req.movieName}</h4>
+            <p style="font-size:12px;">Quality: ${req.quality} | Status: <span style="color:orange;">${req.status}</span></p>
+        </div>
+    `).join('');
+}
+
+// --- Admin Panel ආරම්භය ---
+async function initAdmin() {
+    const all = await fetchAPI(API);
+    const tbody = document.getElementById('tableBody');
+    
+    tbody.innerHTML = all.map(req => `
+        <tr>
+            <td>${req.userName}</td>
+            <td>${req.movieName}</td>
+            <td>${req.quality}</td>
+            <td><b>${req.status}</b></td>
+            <td><button onclick="updateStatus('${req.id}')" style="background:green; color:#white; padding:5px; border:none; border-radius:4px; cursor:pointer;">Done</button></td>
+        </tr>
+    `).join('');
+}
+
+window.updateStatus = async (id) => {
+    await fetchAPI(`${API}?id=${id}`, 'PATCH', { status: 'completed' });
+    location.reload();
+};
+
+// පිටුව හඳුනාගෙන අදාළ Function එක Run කිරීම
+if (document.getElementById('requestsContainer')) initDashboard();
+if (document.getElementById('tableBody')) initAdmin();
