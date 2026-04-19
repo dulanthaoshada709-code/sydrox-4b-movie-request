@@ -610,3 +610,43 @@ body {
 .footer-text a:hover {
   text-decoration: underline;
 }
+/* ===== Request Card Footer ===== */
+.request-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-top: 16px;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.whatsapp-group-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background: #25D366;
+  color: white !important;
+  padding: 6px 12px;
+  border-radius: 20px;
+  font-size: 0.8rem;
+  text-decoration: none;
+  font-weight: 500;
+  transition: background 0.2s;
+}
+
+.whatsapp-group-link:hover {
+  background: #128C7E;
+}
+
+.whatsapp-group-link i {
+  font-size: 1rem;
+}
+
+/* Completed request subtle styling */
+.completed-request {
+  border-left: 4px solid #25D366;
+}
+
+[data-theme="dark"] .completed-request {
+  border-left-color: #2db84d;
+}
