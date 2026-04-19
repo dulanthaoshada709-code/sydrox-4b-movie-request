@@ -650,3 +650,62 @@ body {
 [data-theme="dark"] .completed-request {
   border-left-color: #2db84d;
 }
+
+  /* Unfound Status Styles */
+.status-unfound {
+  background: #f8d7da;
+  color: #721c24;
+}
+
+.unfound-request {
+  border-left: 4px solid #dc3545;
+}
+
+.unfound-message {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background: #f8d7da;
+  color: #721c24;
+  padding: 6px 12px;
+  border-radius: 20px;
+  font-size: 0.8rem;
+  font-weight: 500;
+}
+
+.action-btn.unfound {
+  color: #dc3545;
+  border-color: #dc3545;
+}
+
+.action-btn.unfound:hover {
+  background: #dc3545;
+  color: white;
+}
+
+/* Dark theme overrides */
+[data-theme="dark"] .status-unfound {
+  background: #442229;
+  color: #f5c6cb;
+}
+
+[data-theme="dark"] .unfound-message {
+  background: #442229;
+  color: #f5c6cb;
+}
+
+[data-theme="dark"] .unfound-request {
+  border-left-color: #dc3545;
+}
+
+/* Adjust action buttons for mobile */
+@media (max-width: 768px) {
+  .admin-table td:last-child {
+    display: flex;
+    flex-direction: column;
+    gap: 5px;
+  }
+  .action-btn {
+    margin-right: 0;
+  }
+}
