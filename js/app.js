@@ -1,57 +1,44 @@
-// ==================== MongoDB Configuration ====================
-const MONGO_API_KEY = 'YOUR_API_KEY'; // Data API Key එක
-const MONGO_APP_ID = 'YOUR_APP_ID';   // App ID එක (URL එකේ තියෙන data-abcde කොටස)
-const MONGO_BASE_URL = `https://data.mongodb-api.com/app/${MONGO_APP_ID}/endpoint/data/v1`;
-const MONGO_DATA_SOURCE = 'Cluster0';
-const MONGO_DATABASE = 'movieRequestDB';
-const MONGO_COLLECTION = 'requests';
+// ==================== API Configuration ====================
+const API_BASE_URL = '/api';
 
-// ==================== Helper: MongoDB API Calls ====================
-async function mongoFetch(action, filter = {}, document = null, update = null) {
-  const url = `${MONGO_BASE_URL}/action/${action}`;
-  const body = {
-    dataSource: MONGO_DATA_SOURCE,
-    database: MONGO_DATABASE,
-    collection: MONGO_COLLECTION
+// ==================== Helper: API Calls ====================
+async function apiFetch(endpoint, method = 'GET', body = null) {
+  const options = {
+    method: method,
+    headers: { 'Content-Type': 'application/json' }
   };
-
-  if (action === 'find') body.filter = filter;
-  if (action === 'insertOne' || action === 'replaceOne') body.document = document;
-  if (action === 'updateOne') { body.filter = filter; body.update = update; }
-  if (action === 'deleteOne') body.filter = filter;
-
+  
+  if (body) {
+    options.body = JSON.stringify(body);
+  }
+  
   try {
-    const response = await fetch(url, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'api-key': MONGO_API_KEY
-      },
-      body: JSON.stringify(body)
-    });
-    const data = await response.json();
-    if (!response.ok) throw new Error(data.error || 'API Error');
-    return data;
+    const response = await fetch(`${API_BASE_URL}${endpoint}`, options);
+    if (!response.ok) {
+      throw new Error(`API Error: ${response.status}`);
+    }
+    return await response.json();
   } catch (error) {
-    console.error('MongoDB API Error:', error);
-    alert('දත්ත ගබඩාව සමඟ සම්බන්ධ වීමේ දෝෂයකි. පසුව නැවත උත්සාහ කරන්න.');
+    console.error('API Error:', error);
+    alert('Database connection error. Please try again later.');
     return null;
   }
 }
 
+// Get all requests from MongoDB
 async function getAllRequests() {
-  const result = await mongoFetch('find', {});
-  return result ? result.documents : [];
+  const data = await apiFetch('/requests', 'GET');
+  return data || [];
 }
 
+// Save a new request to MongoDB
 async function saveRequest(newRequest) {
-  return await mongoFetch('insertOne', {}, newRequest);
+  return await apiFetch('/requests', 'POST', newRequest);
 }
 
+// Update request status in MongoDB
 async function updateRequestStatusMongo(requestId, newStatus) {
-  const filter = { id: requestId };
-  const update = { $set: { status: newStatus } };
-  return await mongoFetch('updateOne', filter, null, update);
+  return await apiFetch(`/requests/${requestId}`, 'PATCH', { status: newStatus });
 }
 
 // ==================== Common Helper Functions ====================
@@ -113,8 +100,8 @@ async function initDashboard() {
     requestForm.reset();
   };
   
-  closeModalBtn?.addEventListener('click', closeModal);
-  cancelBtn?.addEventListener('click', closeModal);
+  if (closeModalBtn) closeModalBtn.addEventListener('click', closeModal);
+  if (cancelBtn) cancelBtn.addEventListener('click', closeModal);
   modal.addEventListener('click', (e) => { if (e.target === modal) closeModal(); });
   
   if (requestForm) {
@@ -126,7 +113,7 @@ async function initDashboard() {
       const quality = document.getElementById('quality').value;
       
       if (!movieName || !quality) {
-        alert('චිත්‍රපට නම සහ ගුණාත්මකභාවය අනිවාර්ය වේ.');
+        alert('Movie name and quality are required.');
         return;
       }
       
@@ -160,13 +147,19 @@ async function loadUserRequests(userId) {
   const requests = allRequests.filter(req => req.userId === userId);
   
   if (requests.length === 0) {
-    container.innerHTML = `<div class="empty-state"><i class="fas fa-inbox"></i><p>තවමත් චිත්‍රපට ඉල්ලීම් නොමැත.</p></div>`;
+    container.innerHTML = `
+      <div class="empty-state">
+        <i class="fas fa-inbox"></i>
+        <p>No movie requests yet.</p>
+      </div>
+    `;
     return;
   }
   
   requests.sort((a, b) => new Date(b.requestedAt) - new Date(a.requestedAt));
   
-  const groupLink = 'YOUR_GROUP_INVITE_LINK'; // ⚠️ ඔබගේ WhatsApp සමූහයේ ආරාධනා සබැඳිය
+  // IMPORTANT: Replace with your actual WhatsApp group invite link
+  const groupLink = 'YOUR_GROUP_INVITE_LINK';
   
   let html = '';
   requests.forEach(req => {
@@ -175,32 +168,45 @@ async function loadUserRequests(userId) {
     let statusClass, statusText;
     if (req.status === 'pending') {
       statusClass = 'status-pending';
-      statusText = 'බලාපොරොත්තුවෙන්';
+      statusText = 'Pending';
     } else if (req.status === 'completed') {
       statusClass = 'status-completed';
-      statusText = 'සම්පූර්ණයි';
-    } else { // unfound
+      statusText = 'Completed';
+    } else {
       statusClass = 'status-unfound';
-      statusText = 'සොයාගත නොහැක';
+      statusText = 'Not Found';
     }
     
     let actionBadge = '';
     if (req.status === 'completed') {
       actionBadge = `
-        <a href="${groupLink}" target="_blank" class="whatsapp-group-link">
-          <i class="fab fa-whatsapp"></i> සමූහයට යන්න
+        <a href="${groupLink}" target="_blank" class="whatsapp-group-link" title="Join WhatsApp Group">
+          <i class="fab fa-whatsapp"></i> Join Group
         </a>
       `;
     } else if (req.status === 'unfound') {
-      actionBadge = `<span class="unfound-message"><i class="fas fa-exclamation-circle"></i> චිත්‍රපටය හමු නොවීය</span>`;
+      actionBadge = `
+        <span class="unfound-message">
+          <i class="fas fa-exclamation-circle"></i> Movie not found
+        </span>
+      `;
     }
     
     html += `
       <div class="request-card ${req.status === 'completed' ? 'completed-request' : (req.status === 'unfound' ? 'unfound-request' : '')}">
         <h4><i class="fas fa-film"></i> ${escapeHtml(req.movieName)}</h4>
-        <div class="request-detail"><i class="fas fa-globe"></i><span>${escapeHtml(req.site)}</span></div>
-        <div class="request-detail"><i class="fas fa-video"></i><span>${escapeHtml(req.quality)}</span></div>
-        <div class="request-detail"><i class="far fa-calendar-alt"></i><span>${date}</span></div>
+        <div class="request-detail">
+          <i class="fas fa-globe"></i>
+          <span>${escapeHtml(req.site)}</span>
+        </div>
+        <div class="request-detail">
+          <i class="fas fa-video"></i>
+          <span>${escapeHtml(req.quality)}</span>
+        </div>
+        <div class="request-detail">
+          <i class="far fa-calendar-alt"></i>
+          <span>${date}</span>
+        </div>
         <div class="request-footer">
           <span class="request-status ${statusClass}">${statusText}</span>
           ${actionBadge}
@@ -236,14 +242,15 @@ async function loadAdminRequests() {
   requests.forEach(req => {
     const date = new Date(req.requestedAt).toLocaleDateString('si-LK');
     let statusText, statusClass;
+    
     if (req.status === 'pending') {
-      statusText = 'බලාපොරොත්තුවෙන්';
+      statusText = 'Pending';
       statusClass = 'status-pending';
     } else if (req.status === 'completed') {
-      statusText = 'සම්පූර්ණයි';
+      statusText = 'Completed';
       statusClass = 'status-completed';
     } else {
-      statusText = 'සොයාගත නොහැක';
+      statusText = 'Not Found';
       statusClass = 'status-unfound';
     }
     
@@ -258,10 +265,10 @@ async function loadAdminRequests() {
         <td>${date}</td>
         <td>
           <button class="action-btn complete" onclick="updateRequestStatus('${req.id}', 'completed')" ${req.status === 'completed' ? 'disabled' : ''}>
-            <i class="fas fa-check"></i> සම්පූර්ණ
+            <i class="fas fa-check"></i> Complete
           </button>
           <button class="action-btn unfound" onclick="updateRequestStatus('${req.id}', 'unfound')" ${req.status === 'unfound' ? 'disabled' : ''}>
-            <i class="fas fa-search"></i> හමු නොවීය
+            <i class="fas fa-search"></i> Not Found
           </button>
         </td>
       </tr>
@@ -274,9 +281,9 @@ async function loadAdminRequests() {
 async function updateRequestStatus(requestId, newStatus) {
   let confirmMsg = '';
   if (newStatus === 'completed') {
-    confirmMsg = 'ඉල්ලීම සම්පූර්ණ කළ බවට සලකුණු කරන්නද?';
+    confirmMsg = 'Mark this request as completed?';
   } else {
-    confirmMsg = 'චිත්‍රපටය සොයාගත නොහැකි බවට සලකුණු කරන්නද?';
+    confirmMsg = 'Mark this movie as not found?';
   }
   
   if (!confirm(confirmMsg)) return;
@@ -284,12 +291,12 @@ async function updateRequestStatus(requestId, newStatus) {
   const result = await updateRequestStatusMongo(requestId, newStatus);
   if (result) {
     await loadAdminRequests();
-    alert('තත්වය යාවත්කාලීන කරන ලදී.');
+    alert('Status updated successfully.');
   }
 }
 
-window.updateRequestStatus = updateRequestStatus;', function(e) {
-      if (!userMenuBtn.contains(e.target) && !userDropdown.contains(e.target)) {
+// Expose function globally for onclick handlers
+window.updateRequestStatus = updateRequestStatus;ins(e.target)) {
         userDropdown.classList.add('hidden');
       }
     });
