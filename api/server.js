@@ -8,7 +8,7 @@ app.use(cors());
 app.use(express.json());
 
 const uri = process.env.MONGODB_URI;
-const dbName = process.env.DB_NAME || 'movieRequestDB'; // 👈 Database name එක හරියට
+const dbName = process.env.DB_NAME || 'movieRequestDB';
 
 const client = new MongoClient(uri);
 
@@ -40,11 +40,11 @@ app.post('/api/requests', async (req, res) => {
     }
 });
 
-// ✅ FIXED: PATCH - Update status (using :id parameter)
+// PATCH - Update status
 app.patch('/api/requests/:id', async (req, res) => {
     try {
         const col = await connectDB();
-        const { id } = req.params; // 👈 req.params, not req.query
+        const { id } = req.params;
         const { status } = req.body;
         
         const result = await col.updateOne(
@@ -56,7 +56,25 @@ app.patch('/api/requests/:id', async (req, res) => {
             return res.status(404).json({ error: 'Request not found' });
         }
         
-        res.json({ success: true, modified: result.modifiedCount });
+        res.json({ success: true });
+    } catch (error) {
+        res.status(500).json({ error: error.message });
+    }
+});
+
+// DELETE - Delete request
+app.delete('/api/requests/:id', async (req, res) => {
+    try {
+        const col = await connectDB();
+        const { id } = req.params;
+        
+        const result = await col.deleteOne({ id: id });
+        
+        if (result.deletedCount === 0) {
+            return res.status(404).json({ error: 'Request not found' });
+        }
+        
+        res.json({ success: true });
     } catch (error) {
         res.status(500).json({ error: error.message });
     }
