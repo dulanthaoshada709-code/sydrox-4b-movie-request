@@ -1,16 +1,53 @@
 const API_BASE = '/api';
 const API_REQUESTS = `${API_BASE}/requests`;
-const WHATSAPP_GROUP_LINK = 'YOUR_GROUP_INVITE_LINK'; // 👈 ඔබේ Link එක දාන්න
+const WHATSAPP_GROUP_LINK = 'YOUR_GROUP_INVITE_LINK'; // 👈 Add your WhatsApp group link here
+
+let dashboardInitialized = false;
 
 async function fetchAPI(url, method = 'GET', body = null) {
     const options = { method, headers: { 'Content-Type': 'application/json' } };
     if (body) options.body = JSON.stringify(body);
     const res = await fetch(url, options);
+    if (!res.ok) throw new Error(`API Error: ${res.status}`);
     return res.json();
 }
 
-// --- Dashboard ---
+// DELETE request function
+async function deleteRequest(id) {
+    if (!confirm('Are you sure you want to delete this request?')) return;
+    try {
+        await fetchAPI(`${API_REQUESTS}/${id}`, 'DELETE');
+        alert('Request deleted successfully!');
+        const user = JSON.parse(localStorage.getItem('currentUser'));
+        if (user) await loadUserRequests(user.id);
+    } catch (error) {
+        alert('Failed to delete request!');
+    }
+}
+
+window.deleteRequest = deleteRequest;
+
+// Update status function
+window.updateStatus = async (id, status) => {
+    if (!confirm(`Mark this request as "${status}"?`)) return;
+    try {
+        await fetchAPI(`${API_REQUESTS}/${id}`, 'PATCH', { status });
+        alert('Status updated successfully!');
+        const tbody = document.getElementById('tableBody');
+        if (tbody) {
+            const all = await fetchAPI(API_REQUESTS) || [];
+            renderAdminTable(all, tbody);
+        }
+    } catch (error) {
+        alert('Failed to update status!');
+    }
+};
+
+// Dashboard initialization
 async function initDashboard() {
+    if (dashboardInitialized) return;
+    dashboardInitialized = true;
+    
     const user = JSON.parse(localStorage.getItem('currentUser'));
     if (!user) { window.location.href = 'index.html'; return; }
     
@@ -23,11 +60,25 @@ async function initDashboard() {
         window.location.href = 'index.html';
     });
     
-    // Modal
+    // User menu dropdown
+    const userMenuBtn = document.getElementById('userMenuBtn');
+    const userDropdown = document.getElementById('userDropdown');
+    userMenuBtn?.addEventListener('click', (e) => {
+        e.stopPropagation();
+        userDropdown.classList.toggle('hidden');
+    });
+    document.addEventListener('click', (e) => {
+        if (!userMenuBtn?.contains(e.target) && !userDropdown?.contains(e.target)) {
+            userDropdown?.classList.add('hidden');
+        }
+    });
+    
+    // Modal setup
     const modal = document.getElementById('requestModal');
     const form = document.getElementById('movieRequestForm');
     
     document.getElementById('newRequestBtn')?.addEventListener('click', () => modal.classList.remove('hidden'));
+    
     document.querySelectorAll('.close-modal, .cancel-btn').forEach(b => {
         b.addEventListener('click', () => {
             modal.classList.add('hidden');
@@ -35,10 +86,21 @@ async function initDashboard() {
         });
     });
     
-    form?.addEventListener('submit', async (e) => {
+    modal?.addEventListener('click', (e) => {
+        if (e.target === modal) {
+            modal.classList.add('hidden');
+            form.reset();
+        }
+    });
+    
+    // Form submit - clone to remove old listeners
+    const newForm = form.cloneNode(true);
+    form.parentNode.replaceChild(newForm, form);
+    
+    newForm.addEventListener('submit', async (e) => {
         e.preventDefault();
         const data = {
-            id: 'req_' + Date.now(),
+            id: 'req_' + Date.now() + '_' + Math.random().toString(36).substr(2, 5),
             userId: user.id,
             userName: user.name,
             userWhatsapp: user.whatsapp,
@@ -48,11 +110,16 @@ async function initDashboard() {
             status: 'pending',
             requestedAt: new Date().toISOString()
         };
-        await fetchAPI(API_REQUESTS, 'POST', data);
-        alert('ඉල්ලීම සාර්ථකයි!');
-        modal.classList.add('hidden');
-        form.reset();
-        await loadUserRequests(user.id);
+        
+        try {
+            await fetchAPI(API_REQUESTS, 'POST', data);
+            alert('Request submitted successfully!');
+            modal.classList.add('hidden');
+            newForm.reset();
+            await loadUserRequests(user.id);
+        } catch (error) {
+            alert('Failed to submit request!');
+        }
     });
     
     await loadUserRequests(user.id);
@@ -60,72 +127,86 @@ async function initDashboard() {
 
 async function loadUserRequests(userId) {
     const container = document.getElementById('requestsContainer');
-    const all = await fetchAPI(API_REQUESTS) || [];
-    const mine = all.filter(r => r.userId === userId);
-    
-    if (mine.length === 0) {
-        container.innerHTML = `<p style="text-align:center; color:gray;">තවමත් ඉල්ලීම් නොමැත.</p>`;
-        return;
-    }
-    
-    container.innerHTML = mine.reverse().map(req => {
-        const statusColors = { pending: '#f39c12', completed: '#2ecc71', unfound: '#e74c3c' };
-        const statusText = { pending: 'බලාපොරොත්තුවෙන්', completed: 'සම්පූර්ණයි', unfound: 'සොයාගත නොහැක' };
+    try {
+        const all = await fetchAPI(API_REQUESTS) || [];
+        const mine = all.filter(r => r.userId === userId);
         
-        let actionBtn = '';
-        if (req.status === 'completed') {
-            actionBtn = `<a href="${WHATSAPP_GROUP_LINK}" target="_blank" style="background:#25D366; color:white; padding:5px 10px; border-radius:5px; text-decoration:none; margin-top:10px; display:inline-block;">📱 සමූහයට යන්න</a>`;
+        if (mine.length === 0) {
+            container.innerHTML = `<div class="empty-state"><i class="fas fa-inbox"></i><p>No requests yet.</p></div>`;
+            return;
         }
         
-        return `
-            <div class="request-card" style="border-left:5px solid ${statusColors[req.status]}; background:rgba(255,255,255,0.05); padding:15px; margin-bottom:15px; border-radius:8px;">
-                <h3 style="margin:0 0 10px 0;">🎬 ${req.movieName}</h3>
-                <p style="margin:5px 0;">🌐 Site: ${req.site}</p>
-                <p style="margin:5px 0;">📺 Quality: ${req.quality}</p>
-                <p style="margin:5px 0;">📅 Date: ${new Date(req.requestedAt).toLocaleDateString('si-LK')}</p>
-                <p style="margin:10px 0; color:${statusColors[req.status]}; font-weight:bold;">Status: ${statusText[req.status]}</p>
-                ${actionBtn}
-            </div>
-        `;
-    }).join('');
+        container.innerHTML = mine.reverse().map(req => {
+            const statusColors = { pending: '#f39c12', completed: '#2ecc71', unfound: '#e74c3c' };
+            const statusText = { pending: 'Pending', completed: 'Completed', unfound: 'Not Found' };
+            
+            let actionBtn = '';
+            if (req.status === 'completed') {
+                actionBtn = `<a href="${WHATSAPP_GROUP_LINK}" target="_blank" class="whatsapp-btn"><i class="fab fa-whatsapp"></i> Join Group</a>`;
+            }
+            
+            let deleteBtn = '';
+            if (req.status === 'pending') {
+                deleteBtn = `<button onclick="deleteRequest('${req.id}')" class="delete-btn"><i class="fas fa-trash"></i> Delete</button>`;
+            }
+            
+            return `
+                <div class="request-card" style="border-left:5px solid ${statusColors[req.status]};">
+                    <h3><i class="fas fa-film"></i> ${req.movieName}</h3>
+                    <p><i class="fas fa-globe"></i> Site: ${req.site}</p>
+                    <p><i class="fas fa-video"></i> Quality: ${req.quality}</p>
+                    <p><i class="far fa-calendar-alt"></i> Date: ${new Date(req.requestedAt).toLocaleDateString()}</p>
+                    <p class="status-badge" style="color:${statusColors[req.status]};">Status: ${statusText[req.status]}</p>
+                    <div class="card-actions">
+                        ${actionBtn}
+                        ${deleteBtn}
+                    </div>
+                </div>
+            `;
+        }).join('');
+    } catch (error) {
+        container.innerHTML = `<p style="color:red;">Failed to load requests.</p>`;
+    }
 }
 
-// --- Admin ---
-async function initAdmin() {
-    const tbody = document.getElementById('tableBody');
-    const all = await fetchAPI(API_REQUESTS) || [];
-    
+// Admin functions
+function renderAdminTable(all, tbody) {
     if (all.length === 0) {
-        tbody.innerHTML = `<tr><td colspan="8" style="text-align:center;">කිසිදු ඉල්ලීමක් නොමැත</td></tr>`;
+        tbody.innerHTML = `<tr><td colspan="8" style="text-align:center;">No requests found.</td></tr>`;
         return;
     }
     
     tbody.innerHTML = all.reverse().map(req => {
         const statusColors = { pending: '#f39c12', completed: '#2ecc71', unfound: '#e74c3c' };
         return `
-            <tr style="border-bottom:1px solid #ddd;">
+            <tr>
                 <td>${req.userName}</td>
                 <td>${req.userWhatsapp}</td>
                 <td>${req.movieName}</td>
                 <td>${req.site}</td>
                 <td>${req.quality}</td>
                 <td style="color:${statusColors[req.status]}; font-weight:bold;">${req.status}</td>
-                <td>${new Date(req.requestedAt).toLocaleDateString('si-LK')}</td>
+                <td>${new Date(req.requestedAt).toLocaleDateString()}</td>
                 <td>
-                    <button onclick="updateStatus('${req.id}', 'completed')" style="background:#2ecc71; color:white; border:none; padding:5px 8px; border-radius:4px; cursor:pointer;">✅ Done</button>
-                    <button onclick="updateStatus('${req.id}', 'unfound')" style="background:#e74c3c; color:white; border:none; padding:5px 8px; border-radius:4px; cursor:pointer; margin-left:5px;">❌ Unfound</button>
+                    <button onclick="updateStatus('${req.id}', 'completed')" class="admin-btn done">✅ Done</button>
+                    <button onclick="updateStatus('${req.id}', 'unfound')" class="admin-btn unfound">❌ Unfound</button>
                 </td>
             </tr>
         `;
     }).join('');
 }
 
-// ✅ Fixed: Correct PATCH URL
-window.updateStatus = async (id, status) => {
-    if (!confirm(`"${status}" ලෙස වෙනස් කරන්නද?`)) return;
-    await fetchAPI(`${API_REQUESTS}/${id}`, 'PATCH', { status });
-    location.reload();
-};
+async function initAdmin() {
+    const tbody = document.getElementById('tableBody');
+    if (!tbody) return;
+    
+    try {
+        const all = await fetchAPI(API_REQUESTS) || [];
+        renderAdminTable(all, tbody);
+    } catch (error) {
+        tbody.innerHTML = `<tr><td colspan="8" style="color:red;">Failed to load requests.</td></tr>`;
+    }
+}
 
 // Init
 document.addEventListener('DOMContentLoaded', () => {
