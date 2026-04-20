@@ -1,9 +1,9 @@
 <!DOCTYPE html>
-<html lang="si">
+<html lang="en">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>DASHBOARD | request movie</title>
+  <title>Dashboard | Movie Request</title>
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
   <link rel="stylesheet" href="css/style.css">
 </head>
@@ -23,7 +23,7 @@
           <span id="userNameDisplay"></span>
         </button>
         <div id="userDropdown" class="dropdown-content hidden">
-          <a href="#" id="logoutBtn"><i class="fas fa-sign-out-alt"></i> log out</a>
+          <a href="#" id="logoutBtn"><i class="fas fa-sign-out-alt"></i> Logout</a>
         </div>
       </div>
     </div>
@@ -35,21 +35,21 @@
     <aside class="sidebar">
       <button id="newRequestBtn" class="new-request-btn">
         <i class="fas fa-plus-circle"></i>
-        <span>request film</span>
+        <span>Request Movie</span>
       </button>
     </aside>
 
     <!-- Main Content Area -->
     <main class="main-content">
       <div class="content-header">
-        <h3>your reuest</h3>
+        <h3>Your Requests</h3>
       </div>
       
       <div id="requestsContainer" class="requests-grid">
         <!-- Requests will be loaded here dynamically -->
         <div class="empty-state">
           <i class="fas fa-inbox"></i>
-          <p>no result..!</p>
+          <p>No requests yet.</p>
         </div>
       </div>
     </main>
@@ -59,24 +59,24 @@
   <div id="requestModal" class="modal hidden">
     <div class="modal-content">
       <div class="modal-header">
-        <h3><i class="fas fa-film"></i> request a new film </h3>
+        <h3><i class="fas fa-film"></i> Request a Movie</h3>
         <button class="close-modal">&times;</button>
       </div>
       <form id="movieRequestForm">
         <div class="form-group">
-          <label for="movieName">film name*</label>
-          <input type="text" id="movieName" placeholder="eg: Inception" required>
+          <label for="movieName">Movie Name *</label>
+          <input type="text" id="movieName" placeholder="e.g., Inception" required>
         </div>
         
         <div class="form-group">
-          <label for="movieSite">website (optional)</label>
-          <input type="text" id="movieSite" placeholder="උදා: sinhalasub/cinesubz">
+          <label for="movieSite">Website (Optional)</label>
+          <input type="text" id="movieSite" placeholder="e.g., IMDb, YouTube">
         </div>
         
         <div class="form-group">
-          <label for="quality"> quality *</label>
+          <label for="quality">Quality *</label>
           <select id="quality" required>
-            <option value="">slect </option>
+            <option value="">Select</option>
             <option value="480p">480p</option>
             <option value="720p">720p</option>
             <option value="1080p">1080p</option>
@@ -84,26 +84,27 @@
         </div>
         
         <div class="modal-actions">
-          <button type="button" class="cancel-btn">cancel</button>
+          <button type="button" class="cancel-btn">Cancel</button>
           <button type="submit" class="submit-btn">
-            <i class="fas fa-paper-plane"></i> submit request
+            <i class="fas fa-paper-plane"></i> Submit Request
           </button>
         </div>
       </form>
     </div>
   </div>
-<!-- Footer with WhatsApp Icon -->
-<footer class="app-footer">
-  <div class="footer-content">
-    <a href="https://www.whatsapp.com" target="_blank" rel="noopener noreferrer" class="whatsapp-link" aria-label="WhatsApp">
-      <i class="fab fa-whatsapp"></i>
-    </a>
-    <span class="footer-text">
-      ඔබ request කරන movie පැය 24ක් ඇතුළත මෙම 
-      <a href="#">WhatsApp group</a> එකට දමනු ලැබේ.
-    </span>
-  </div>
-</footer>
+
+  <!-- Footer with WhatsApp Icon -->
+  <footer class="app-footer">
+    <div class="footer-content">
+      <a href="https://www.whatsapp.com" target="_blank" rel="noopener noreferrer" class="whatsapp-link" aria-label="WhatsApp">
+        <i class="fab fa-whatsapp"></i>
+      </a>
+      <span class="footer-text">
+        Your requested movie will be added to this 
+        <a href="#">WhatsApp group</a> within 24 hours.
+      </span>
+    </div>
+  </footer>
 
   <script src="js/theme.js"></script>
   <script src="js/app.js"></script>
@@ -112,11 +113,6 @@
     if (!localStorage.getItem('currentUser')) {
       window.location.href = 'index.html';
     }
-    
-    // Initialize dashboard
-    document.addEventListener('DOMContentLoaded', function() {
-      initDashboard();
-    });
   </script>
 </body>
-</html>
+  </html>
